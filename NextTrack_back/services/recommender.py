@@ -95,7 +95,7 @@ class MusicRecommender:
 
             # Hybrid Genre-Aware Reranking: +0.05 bonus for same genre
             bonus = 0.05 if raw_info.get('genre') == dominant_genre else 0.0
-            final_score = round(sim_score + bonus, 4)
+            final_score = round(min(1.0, sim_score + bonus), 4)
 
             track_info = {
                 'artist_name':      raw_info.get('artist_name'),
