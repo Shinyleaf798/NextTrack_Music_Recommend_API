@@ -1,0 +1,9 @@
+.cache
+db.sqlite3
+command.md
+__pycache__
+env/
+**/migrations/*
+!**/migrations/__init__.py
+*.ann
+.env

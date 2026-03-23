@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <title>NextTrack - FYP Prototype</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        .spotify-green {
+            color: #1DB954;
+        }
+
+        .btn-spotify {
+            background-color: #1DB954;
+            color: black;
+            font-weight: bold;
+            border-radius: 50px;
+        }
+
+        .scroll-box {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        .card {
+            border-color: #333;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-light py-4">
+    <div class="container-fluid px-4">
+        <header class="text-center mb-4">
+            <div class="card bg-black border-secondary d-inline-block px-5 py-3 shadow-lg">
+                <h1 class="display-6 fw-bold spotify-green mb-1">NextTrack Recommendation API</h1>
+                <p class="text-secondary small mb-0">Stateless Content-Based Filtering Prototype</p>
+            </div>
+        </header>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100 bg-black">
+                    <div class="card-header border-secondary">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>1. Track List (CSV)</span>
+                            <span class="badge bg-dark border border-secondary"
+                                id="total-tracks-badge">Loading...</span>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-dark border-secondary text-secondary">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="search-input"
+                                class="form-control bg-dark border-secondary text-light"
+                                placeholder="Search by song or artist..." value="">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="doSearch()"
+                                type="button">Go</button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearSearch()" title="Clear search"
+                                id="clear-btn" style="display:none">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="list-container" class="card-body p-0 scroll-box">
+                        <div class="list-group list-group-flush" id="csv-song-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <div class="card-footer border-secondary text-center">
+                        <button type="button" onclick="syncSelected()"
+                            class="btn btn-outline-success btn-sm w-100 mb-2">Select
+                            Music</button>
+                        <nav id="pagination-nav">
+                            <ul class="pagination pagination-sm justify-content-center mb-0" id="pagination-list">
+                                <!-- Populated by JS -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 bg-black border-success">
+                    <div class="card-header border-success text-success fw-bold">2. Selected Tracks</div>
+                    <div class="card-body scroll-box" id="selected-display">
+                        <p class="text-center text-secondary mt-5">Click 'Select Music' to add tracks here.</p>
+                    </div>
+                    <div class="card-footer border-0">
+                        <button type="button" onclick="fetchRecommendations()" class="btn btn-spotify w-100">Get
+                            Recommendations</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card h-100 bg-black">
+                    <div class="card-header border-secondary text-secondary">3. User Preference</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between small">Energy (Weight) <span
+                                    id="energy-val">1.0</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.0"
+                                id="energy-range" oninput="document.getElementById('energy-val').innerText=this.value">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between small">Valence (Weight) <span
+                                    id="valence-val">1.0</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.0"
+                                id="valence-range"
+                                oninput="document.getElementById('valence-val').innerText=this.value">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between small">Danceability (Weight) <span
+                                    id="danceability-val">1.0</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.0"
+                                id="danceability-range"
+                                oninput="document.getElementById('danceability-val').innerText=this.value">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between small">Acousticness (Weight) <span
+                                    id="acousticness-val">1.0</span></label>
+                            <input type="range" class="form-range" min="0" max="2" step="0.1" value="1.0"
+                                id="acousticness-range"
+                                oninput="document.getElementById('acousticness-val').innerText=this.value">
+                        </div>
+                        <p class="small text-secondary mt-4"><i class="bi bi-info-circle"></i> 1.0 is neutral. >1.0
+                            increases importance, <1.0 decreases it.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card bg-black shadow-lg">
+                    <div class="card-header border-0 pt-3">
+                        <h5 class="fw-bold">Recommended for You</h5>
+                    </div>
+                    <!-- Set strict height to match the Spotify iframe (352px) -->
+                    <div class="card-body p-0 scroll-box" id="recommendation-results" style="height: 352px;">
+                        <p class="text-center text-secondary mt-5">Results will appear here.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <!-- Removed h-100 so it doesn't stretch artificially, letting the iframe dictate the height -->
+                <div class="card bg-black shadow-lg" id="player-section"
+                    style="height: 406px; border-radius: 12px; overflow: hidden;">
+                    <div
+                        class="card-body text-center d-flex flex-column justify-content-center align-items-center h-100">
+                        <p class="text-secondary">Select a recommended song to play.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a Map to persist selections across page navigations: { track_id -> track_name }
+        const selectedSongs = new Map();
+
+        // Render the "Selected Context" panel from the persistent Map
+        function renderSelectedDisplay() {
+            const display = document.getElementById('selected-display');
+            if (selectedSongs.size === 0) {
+                display.innerHTML = '<p class="text-center text-secondary mt-5">No tracks selected.</p>';
+                return;
+            }
+            let html = '<ul class="list-group list-group-flush">';
+            selectedSongs.forEach((name, id) => {
+                html += `<li class="list-group-item bg-transparent text-light border-0 small d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-music-note-beamed spotify-green me-2"></i>${name}</span>
+                            <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeSelected('${id}')">
+                                <i class="bi bi-x"></i>
+                            </button>
+                         </li>`;
+            });
+            html += '</ul>';
+            display.innerHTML = html;
+        }
+
+        // Remove a single song from the selection
+        function removeSelected(trackId) {
+            selectedSongs.delete(trackId);
+            // Uncheck the checkbox on current page if it's visible
+            const cb = document.querySelector(`input[name="selected_ids"][value="${trackId}"]`);
+            if (cb) cb.checked = false;
+            renderSelectedDisplay();
+        }
+
+        // Button 1: Merge current page's checked items into the persistent Map
+        function syncSelected() {
+            const allCheckboxes = document.querySelectorAll('input[name="selected_ids"]');
+            let limitReached = false;
+
+            for (const cb of allCheckboxes) {
+                if (cb.checked) {
+                    if (!selectedSongs.has(cb.value) && selectedSongs.size >= 5) {
+                        cb.checked = false; // Uncheck the box that exceeded the limit
+                        limitReached = true;
+                        continue;
+                    }
+                    selectedSongs.set(cb.value, cb.getAttribute('data-name'));
+                } else {
+                    // If user unchecked something on this page, remove it
+                    selectedSongs.delete(cb.value);
+                }
+            }
+
+            if (limitReached) {
+                alert("You can only select a maximum of 5 tracks.");
+            }
+            renderSelectedDisplay();
+        }
+
+        // Prevent users from clicking more than 5 checkboxes directly before even clicking 'Select Music'
+        document.addEventListener('change', function (e) {
+            if (e.target.name === 'selected_ids' && e.target.checked) {
+                const allCheckboxes = document.querySelectorAll('input[name="selected_ids"]');
+                let newChecked = 0;
+                let removedMapped = 0;
+
+                for (const cb of allCheckboxes) {
+                    if (cb.checked && !selectedSongs.has(cb.value)) newChecked++;
+                    if (!cb.checked && selectedSongs.has(cb.value)) removedMapped++;
+                }
+
+                if (selectedSongs.size - removedMapped + newChecked > 5) {
+                    alert("You can only select a maximum of 5 tracks.");
+                    e.target.checked = false; // immediately uncheck this attempt
+                }
+            }
+        });
+
+        // Restore checkbox states for songs already selected (called after page content changes)
+        function restoreCheckboxStates() {
+            document.querySelectorAll('input[name="selected_ids"]').forEach(cb => {
+                cb.checked = selectedSongs.has(cb.value);
+            });
+        }
+
+        // Button 2: POST to RESTful API endpoint /api/recommend/
+        function fetchRecommendations() {
+            if (selectedSongs.size === 0) return alert("Please select tracks first!");
+
+            const finalSelectedIds = Array.from(selectedSongs.keys());
+            const resultsBox = document.getElementById('recommendation-results');
+            resultsBox.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-success"></div></div>';
+
+            fetch('/api/recommend/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    selected_ids: finalSelectedIds,
+                    energy: document.getElementById('energy-range').value,
+                    valence: document.getElementById('valence-range').value,
+                    danceability: document.getElementById('danceability-range').value,
+                    acousticness: document.getElementById('acousticness-range').value
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        resultsBox.innerHTML = `<p class="text-center text-danger mt-5"><i class="bi bi-exclamation-triangle me-2"></i>${data.error}</p>`;
+                        return;
+                    }
+                    let html = '<div class="list-group list-group-flush">';
+                    data.recommendations.forEach(rec => {
+                        html += `<button onclick="playSong('${rec.track_id}')" class="list-group-item list-group-item-action bg-transparent text-light border-secondary">
+                            <div class="d-flex justify-content-between"><strong>${rec.track_name}</strong> <span class="spotify-green">${(rec.similarity_score).toFixed(2)} Match</span></div>
+                            <small class="text-secondary">${rec.artist_name} • ${rec.genre}</small>
+                         </button>`;
+                    });
+                    resultsBox.innerHTML = html + '</div>';
+                })
+                .catch(() => {
+                    resultsBox.innerHTML = '<p class="text-center text-danger mt-5">Network error. Please try again.</p>';
+                });
+        }
+
+        // Call GET /api/v0/tracks/{id}/ then render the player
+        function playSong(id) {
+            const playerSection = document.getElementById('player-section');
+
+            // Show loading state immediately
+            playerSection.innerHTML = `
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-success mb-3"></div>
+                    <p class="text-secondary small">Loading track info...</p>
+                </div>`;
+
+            fetch(`/api/v0/tracks/${id}/`)
+                .then(res => res.json())
+                .then(track => {
+                    if (track.error) {
+                        playerSection.innerHTML = `<div class="card-body text-center py-5 text-danger">${track.error}</div>`;
+                        return;
+                    }
+
+                    // The Spotify iframe already includes beautiful album art, title, and artist naturally. 
+                    // No need for a redundant custom header.
+                    playerSection.innerHTML = `
+                        <div class="card-body p-0">
+                            <iframe src="${track.embed_url}"
+                                    width="100%" height="352" frameBorder="0"
+                                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                    allowfullscreen
+                                    style="border-radius: 12px; box-shadow: 0 4px 60px rgba(0,0,0,0.5);"></iframe>
+                        </div>`;
+                })
+                .catch(() => {
+                    // Network fallback
+                    playerSection.innerHTML = `
+                        <div class="card-body p-0">
+                            <iframe src="https://open.spotify.com/embed/track/${id}"
+                                    width="100%" height="352" frameBorder="0"
+                                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                    allowfullscreen
+                                    style="border-radius: 12px; box-shadow: 0 4px 60px rgba(0,0,0,0.5);"></iframe>
+                        </div>`;
+                });
+        }
+
+        // Shared AJAX loader: fetch list + pagination from REST API
+        function loadTracklist(page, q) {
+            const listContainer = document.getElementById('csv-song-list');
+            listContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success"></div></div>';
+
+            const params = new URLSearchParams({ page: page });
+            if (q) params.set('q', q);
+
+            fetch('/api/tracks/?' + params.toString())
+                .then(res => res.json())
+                .then(data => {
+                    // Render Tracks
+                    if (data.tracks.length === 0) {
+                        if (q) {
+                            listContainer.innerHTML = `
+                                <div class="text-center py-4">
+                                    <p class="text-secondary small mb-3">Not found in local <span class="text-light">${(data.total || 0).toLocaleString()}</span> library.</p>
+                                    <button class="btn btn-outline-success btn-sm" onclick="searchExternalAPI('${q.replace(/'/g, "\\'")}')">
+                                        <i class="bi bi-globe"></i> Search Global Library
+                                    </button>
+                                </div>`;
+                        } else {
+                            listContainer.innerHTML = '<div class="text-center text-secondary py-4">No tracks found.</div>';
+                        }
+                    } else {
+                        listContainer.innerHTML = data.tracks.map(song => `
+                            <label class="list-group-item bg-transparent text-light border-secondary d-flex align-items-center gap-2 px-3 py-2" style="cursor:pointer">
+                                <input class="form-check-input flex-shrink-0" type="checkbox" name="selected_ids"
+                                    value="${song.track_id}" data-name="${song.track_name.replace(/"/g, '&quot;')}">
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="fw-bold text-truncate">${song.track_name}</div>
+                                    <small class="text-secondary">${song.artist_name}</small>
+                                </div>
+                            </label>
+                        `).join('');
+                    }
+
+                    // Render Pagination
+                    let paginationHtml = '';
+                    if (data.page > 1) {
+                        paginationHtml += `<li class="page-item"><a class="page-link bg-dark border-secondary text-light" href="#" data-page="${data.page - 1}">Prev</a></li>`;
+                    }
+                    paginationHtml += `<li class="page-item disabled"><span class="page-link bg-dark border-secondary">${data.page} / ${data.total_pages || 1}</span></li>`;
+                    if (data.page < data.total_pages) {
+                        paginationHtml += `<li class="page-item"><a class="page-link bg-dark border-secondary text-light" href="#" data-page="${data.page + 1}">Next</a></li>`;
+                    }
+                    document.getElementById('pagination-list').innerHTML = paginationHtml;
+
+                    // Update dynamic total count
+                    const badge = document.getElementById('total-tracks-badge');
+                    if (badge) {
+                        badge.innerText = (data.total || 0).toLocaleString() + ' Tracks';
+                    }
+
+                    // Restore checkbox states
+                    restoreCheckboxStates();
+                });
+        }
+
+        // New feature: Backend multi-tier fallback invocation (Soundcharts API)
+        function searchExternalAPI(query) {
+            const listContainer = document.getElementById('csv-song-list');
+            listContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-success mb-3"></div>
+                    <p class="text-secondary small">Searching Global Library...<br>Fetching audio properties...</p>
+                </div>
+            `;
+
+            fetch('/api/external_search/?q=' + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        listContainer.innerHTML = `<div class="text-center text-danger py-4">${data.error}</div>`;
+                        return;
+                    }
+
+                    const song = data.track;
+                    listContainer.innerHTML = `
+                        <div class="px-3 py-1 bg-success bg-opacity-25 border-bottom border-success text-center">
+                            <small class="text-success"><i class="bi bi-cloud-check me-1"></i>Found in Global Library</small>
+                        </div>
+                        <label class="list-group-item bg-transparent text-light border-secondary d-flex align-items-center gap-2 px-3 py-2" style="cursor:pointer">
+                            <input class="form-check-input flex-shrink-0" type="checkbox" name="selected_ids"
+                                value="${song.track_id}" data-name="${song.track_name.replace(/"/g, '&quot;')}">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="fw-bold text-truncate">${song.track_name}</div>
+                                <small class="text-secondary">${song.artist_name} • ${song.genre}</small>
+                            </div>
+                        </label>
+                    `;
+
+                    // Clear pagination for single external result
+                    document.getElementById('pagination-list').innerHTML = '';
+                    restoreCheckboxStates();
+                })
+                .catch(() => {
+                    listContainer.innerHTML = '<div class="text-center text-danger py-4">Failed to reach external API.</div>';
+                });
+        }
+
+        // Search: AJAX, no page reload → selectedSongs stays intact
+        function doSearch() {
+            const q = document.getElementById('search-input').value.trim();
+            document.getElementById('clear-btn').style.display = q ? '' : 'none';
+            loadTracklist(1, q);
+        }
+
+        // Clear search
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-btn').style.display = 'none';
+            loadTracklist(1, '');
+        }
+
+        // Press Enter to search
+        document.getElementById('search-input').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') doSearch();
+        });
+
+        // Async pagination: intercept page-link clicks
+        document.addEventListener('click', function (e) {
+            if (e.target.classList.contains('page-link') && e.target.hasAttribute('data-page')) {
+                e.preventDefault();
+                const q = document.getElementById('search-input').value.trim();
+                loadTracklist(e.target.getAttribute('data-page'), q);
+            }
+        });
+
+        // Initial load track list when page ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTracklist(1, '');
+        });
+    </script>
+</body>
+
+</html>
