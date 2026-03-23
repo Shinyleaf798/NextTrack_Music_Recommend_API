@@ -31,8 +31,8 @@ Because the 1.16M track dataset is extremely large, it has been compressed into 
 ### 2. Environment Setup
 Clone the repository and spin up a virtual environment:
 ```bash
-git clone https://github.com/your-username/NextMusic.git
-cd NextMusic
+git clone https://github.com/Shinyleaf798/NextTrack_Music_Recommend_API.git
+cd NextTrack_Music_Recommend_API
 
 # Create and activate virtual environment (Windows)
 python -m venv env
